@@ -19,10 +19,12 @@ This can be done for 4 newspapers (taz, zeit, spiegel and sueddeutsche). Time ca
   
  
  ## notes:
- The **spiegel scraper module** has to be downloaded: 
+ - The **spiegel scraper module** has to be downloaded: 
  An API Key for the spiegel scraper is needed
  
  
- For **Zeit** oly time frames, not dates can be given. 
+ - For **Zeit** oly time frames, not dates can be given. 
+ 
+ - For the mapping of gender and names, the following file is used: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/YPRQH8
  
  
