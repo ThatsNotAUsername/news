@@ -23,8 +23,13 @@ This can be done for 4 newspapers (taz, zeit, spiegel and sueddeutsche). Time ca
  An API Key for the spiegel scraper is needed
  
  
- - For **Zeit** oly time frames, not dates can be given. 
+ - For **Zeit** oly time frames, not dates can be given when collecting data. The dates when the articles are published are stored in the df though.  
+ 
+ - **Zeit** has very different resorst and topics as the other two newspapers.
  
  - For the mapping of gender and names, the following file is used: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/YPRQH8
+ 
+ - **Taz** goes only back 14 days. 
+ 
  
  
