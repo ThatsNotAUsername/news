@@ -18,15 +18,20 @@ import dateutil.parser as dparser
 
 
 def obtain_data(out_folder, start_date, end_date):
-
+    # out_folder = 'sued_test'
+    
+    # start_date = '2023-01-01'
+    # end_date = '2023-01-05'
     
     website = 'https://www.sueddeutsche.de/'
     newspaper = 'sueddeutsche'
     number_searches = 200
     date_format = '%Y-%m-%d'
-    
+    # start_date = '2023-01-17'
+    # end_date = '2023-01-31'
+    # out_folder = 'test_sued'
     def create_url(start_date, end_date, search_page):
-        
+      
         if search_page>0:
             orig_url = 'https://www.sueddeutsche.de/news/page/' + str(search_page) + '?search=&sort=date&all%5B%5D=dep&all%5B%5D=typ&all%5B%5D=sys&time='
         else:
@@ -41,85 +46,97 @@ def obtain_data(out_folder, start_date, end_date):
     
     file_name = out_folder + newspaper + '_from_' + str(start_date) + '_until_' + str(end_date)
     df = pd.DataFrame()
+    number_search=0
     
-    for number_search in range(number_searches):
-        print('number_searches ', number_search )
-        print('\n')
-        
-        url = create_url(start_date, end_date, number_search)
-        
-        # that we dont get kicked out
-        session = requests.Session()
-        retry = Retry(connect=3, backoff_factor=0.5)
-        adapter = HTTPAdapter(max_retries=retry)
-        session.mount('http://', adapter)
-        session.mount('https://', adapter)
+    # we have to search at sueddeutsche using a one day frame: 
+    delta = datetime.strptime(end_date,date_format).date() - datetime.strptime(start_date, date_format).date()   # returns timedelta
+
+    dates_that_should_be_there = [datetime.strptime(start_date, date_format).date() + timedelta(days=i) for i in range(delta.days + 1)]
+    dates_that_should_be_there = [i.strftime(date_format) for i in dates_that_should_be_there]
+    current_date = dates_that_should_be_there[0]
     
-        resp = requests.get(url)  # get the website
-        soup = BeautifulSoup(resp.text, 'lxml')  # get text from website
-        
-        with open('out.txt', 'w') as file:
-            file.write(soup.prettify())
-        
-        if len(soup.find_all(class_='entrylist__entry'))==0:  # stop if all articles for that date were found            
-            break
-        else:
-            output = []
-            out_entry = []
-            for entry in soup.find_all(class_='entrylist__entry'):  # for each article get the relevant information
-                item = {
-                    'headline': e.text if(e := entry.find(class_='entrylist__title')) else float('nan'),
-                    'url': e['href'] if(e:=entry.find(class_='entrylist__link', href=True)) else float('nan'),
-                    'newspaper': newspaper,
-                    'date_published': dparser.parse(e.text,fuzzy=True).strftime(date_format) if(e := entry.find(class_='entrylist__time')) else float('nan'),
-                    
-                    # author always contains "von" (from) so we reomove it
-                    # different authors are seperated by "und"
-                    # also contains place where it was written, last entry after comme (IFF there is a comma)
-                }
-    
-    
-                if not isinstance(item['url'], float):  # otherwise its nan
-                    topics = []
-                    for t in entry.find_all(class_='breadcrumb-list__item'):
-                        topic = t.text.replace(' ', '')
-                        topic = topic.replace('\n', '')
-                        if not topic == 'SZ':
-                            topics.append(topic)
-                        
-                    item['topics'] = list(set(topics))
-                    item['channel'] = topics[0]
-                    if len(topics)>2:
-                        if not topics[0] =='dpa':
-                            item['channel'] = topics[0]
-                        else:
-                            item['channel'] = topics[1]
-                    
-                    if entry.find(class_='entrylist__author'):
-                        e = entry.find(class_='entrylist__author')
-                        
-                        list_authors = ' '.join(e.text.split(' ')[1:])   # remove "von"
-                        list_authors = list_authors.split('und')
-                        cleaned_names = []
-                        # some contain spaces which shouldnt be there. 
-                        for name in list_authors:
-                            name = name.split(' ')
-                            name = [n for n in name if len(n)>0]
-                            if len(name):
-                                if name[0] =='von':
-                                    del name[0]
-                                
-                                name = ' '.join(name)
-                                name = name.split(',')
-                                name = name[0]
-                                cleaned_names.append(name)
-                        item['author'] = ', '.join(cleaned_names)
-                    else:
-                        item['author'] = float('nan')
+    for current_date in dates_that_should_be_there:
+        if not current_date == end_date:
+            following_day = (datetime.strptime(current_date, date_format).date() + timedelta(days=1)).strftime(date_format)
+            for number_search in range(number_searches):
+                print('number_searches ', number_search )
+                print('\n')
                 
-                out_entry.append(entry)
-                output.append(item)
-            df = pd.concat([df, pd.DataFrame(output)], ignore_index=True)
+                # url = create_url(start_date, end_date, number_search)
+                url = create_url(current_date, following_day, number_search)
+                                 
+                # that we dont get kicked out
+                session = requests.Session()
+                retry = Retry(connect=3, backoff_factor=0.5)
+                adapter = HTTPAdapter(max_retries=retry)
+                session.mount('http://', adapter)
+                session.mount('https://', adapter)
+            
+                resp = requests.get(url)  # get the website
+                soup = BeautifulSoup(resp.text, 'lxml')  # get text from website
+                
+                with open('out.txt', 'w') as file:
+                    file.write(soup.prettify())
+                
+                if len(soup.find_all(class_='entrylist__entry'))==0:  # stop if all articles for that date were found            
+                    break
+                else:
+                    output = []
+                    out_entry = []
+                    for entry in soup.find_all(class_='entrylist__entry'):  # for each article get the relevant information
+                        item = {
+                            'headline': e.text if(e := entry.find(class_='entrylist__title')) else float('nan'),
+                            'url': e['href'] if(e:=entry.find(class_='entrylist__link', href=True)) else float('nan'),
+                            'newspaper': newspaper,
+                            'date_published': dparser.parse(e.text,fuzzy=True).strftime(date_format) if(e := entry.find(class_='entrylist__time')) else float('nan'),
+                            
+                            # author always contains "von" (from) so we reomove it
+                            # different authors are seperated by "und"
+                            # also contains place where it was written, last entry after comme (IFF there is a comma)
+                        }
+            
+            
+                        if not isinstance(item['url'], float):  # otherwise its nan
+                            topics = []
+                            for t in entry.find_all(class_='breadcrumb-list__item'):
+                                topic = t.text.replace(' ', '')
+                                topic = topic.replace('\n', '')
+                                if not topic == 'SZ':
+                                    topics.append(topic)
+                                
+                            item['topics'] = list(set(topics))
+                            item['channel'] = topics[0]
+                            if len(topics)>2:
+                                if not topics[0] =='dpa':
+                                    item['channel'] = topics[0]
+                                else:
+                                    item['channel'] = topics[1]
+                            
+                            if entry.find(class_='entrylist__author'):
+                                e = entry.find(class_='entrylist__author')
+                                
+                                list_authors = ' '.join(e.text.split(' ')[1:])   # remove "von"
+                                list_authors = list_authors.split('und')
+                                cleaned_names = []
+                                # some contain spaces which shouldnt be there. 
+                                for name in list_authors:
+                                    name = name.split(' ')
+                                    name = [n for n in name if len(n)>0]
+                                    if len(name):
+                                        if name[0] =='von':
+                                            del name[0]
+                                        
+                                        name = ' '.join(name)
+                                        name = name.split(',')
+                                        name = name[0]
+                                        cleaned_names.append(name)
+                                item['author'] = ', '.join(cleaned_names)
+                            else:
+                                item['author'] = float('nan')
+                        
+                        out_entry.append(entry)
+                        output.append(item)
+                    df = pd.concat([df, pd.DataFrame(output)], ignore_index=True)
     
         pickle.dump(df, open(file_name+'.pkl', 'wb'))
     
