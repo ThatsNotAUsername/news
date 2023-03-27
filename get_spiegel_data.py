@@ -2,16 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Nov 13 11:54:03 2022
-
 @author: annika
-
 Get data from newspaper and store them. 
 So far only Spiegel
-
 data is stored as dataframe at:
     
 folder_out_data + 'from_' + start_date +'_until_' + end_date + '_df_all_articles.pkl
-
 """
 
 # API key for newsapi
@@ -58,6 +54,7 @@ def obtain_data(out_folder, start_date, end_date):
                 article['newspaper'] = 'Spiegel'  # add newspaper name
                 article['abbreviation'] = article['author']['abbreviation']  # some articles do not have authors name but the source (like dpa)
                 article['author'] = article['author']['names']  # I only want the authors name. If more than 1 author, it is a list of names
+                article['headline'] = article['headline']['main']
                 df_all_articles = df_all_articles.append(article, ignore_index=True)  # add information as row to the dataframe
             except:
                 pass
@@ -101,7 +98,3 @@ def obtain_data(out_folder, start_date, end_date):
     
     
     return df_all_articles
-
-
-
-

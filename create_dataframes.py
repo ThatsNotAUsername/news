@@ -45,7 +45,7 @@ def original_df(start_date = '2022-9-15', end_date = '2022-11-16', folder_out_da
 
 def percentage_df(df_all_articles, hue_order_noNoAuthor=['name unclear', 'both', 'M', 'F']):
     # # create from given df number of published articles and percentage wrt gender
-
+    
     # percentage for the whole time given: 
     df_count_channel = df_all_articles.groupby(['channel', 'gender', 'newspaper']).count()
     df_count_channel.reset_index(inplace=True)

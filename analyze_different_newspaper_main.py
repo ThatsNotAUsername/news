@@ -35,7 +35,6 @@ import timeit
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px
-from textwrap import wrap
 
 import create_dataframes
 
@@ -48,21 +47,17 @@ date_format = '%Y-%m-%d'
 # end_date = end_date.strftime(date_format)
 # time_frame = '30d'  # for Zeit
 
-start_date = '2023-01-18'
-end_date = '2023-02-01'
+# start_date = '2022-11-15'
+# end_date = '2022-12-15'
 # start_date = '2022-10-17'
 # end_date = '2022-11-16'
 
-# start_date = datetime.today() - timedelta(days=14) # over last two weeks
-# start_date = start_date.strftime('%Y-%m-%d')
-# end_date = datetime.today()# - timedelta(days=30) # last month
-# end_date = end_date.strftime('%Y-%m-%d')
+start_date = datetime.today() - timedelta(days=14) # over last two weeks
+start_date = start_date.strftime('%Y-%m-%d')
+end_date = datetime.today()# - timedelta(days=30) # last month
+end_date = end_date.strftime('%Y-%m-%d')
 time_frame = '30d'  # for Zeit
 
-delta = datetime.strptime(end_date,date_format).date() - datetime.strptime(start_date, date_format).date()   # returns timedelta
-
-dates_that_should_be_there = [datetime.strptime(start_date, date_format).date() + timedelta(days=i) for i in range(delta.days + 1)]
-dates_that_should_be_there = [i.strftime(date_format) for i in dates_that_should_be_there]
 
 # start_date = '2022-11-15'  # datetime.today() - timedelta(days=1) # yesterday
 # # start_date = start_date.strftime('%Y-%m-%d')
@@ -87,23 +82,8 @@ if 'index' in df_all_articles.columns:
 
 df_all_articles = df_all_articles[df_all_articles['newspaper'].isin(newspaper_to_use)]
 
-
-# %% some cleaning
-# sueddeutsche has dpa as channel/resort... have to remove this. 
-df_all_articles = df_all_articles[df_all_articles['channel']!='dpa']
-
-
-# some headlines are dictionaries apparently. We keep the 'main' headline:
-for index in df_all_articles.index:
-    if isinstance(df_all_articles['headline'][index], dict):
-        df_all_articles['headline'][index] = df_all_articles['headline'][index]['main']
-    
-index_dicts=[]
-for index in df_all_articles.index:
-    if isinstance(df_all_articles['headline'][index], dict):
-        index_dicts.append[index]
-        
-df_all_articles.drop_duplicates(subset=['newspaper', 'just_date', 'headline'], inplace=True)#, 'url', 'author', 
+# clean dates, remove all which are not in the given time frame: 
+dates = set(df_all_articles['just_date'])
 
 names_newspaper = list(set(df_all_articles['newspaper']))
 
@@ -114,11 +94,12 @@ if number_dates_show > 20:
 else:
     number_dates_show =1  # show each date on xaxis
 
-
 # %% which topic is analyzed: 
 thema = 'iran'
 buzz_words = ['Iran', 'Mullahs', 'Masha Amini', 'Mahsa', 'Amini', 'Jina', 'Jina Amini', 'Kopftuch', 'Haare', 'Islam']
 interesting_channels = ['Wirtschaft und Umwelt', 'Wirtschaft', 'International','Ausland', 'Politik']
+
+
 
 # thema = 'afghanistan'
 # buzz_words = ['Afghanistan', 'Taliban', 'Kabul']
@@ -156,10 +137,6 @@ if not os.path.exists(folder_figures):
 folder_wordclouds = folder_figures + 'wordclouds/'
 if not os.path.exists(folder_wordclouds):
     os.mkdir(folder_wordclouds)
-
-folder_QC = folder_figures + 'QC/'
-if not os.path.exists(folder_QC):
-    os.mkdir(folder_QC)
     
 folder_histplots = folder_figures + 'histplots/'
 if not os.path.exists(folder_histplots):
@@ -186,31 +163,6 @@ def prep_xaxis(ax, n=number_dates_show):
     ax.tick_params(axis=u'both', which=u'both',length=0)
     # increase fontsize
     ax.xaxis.label.set_size(fontsize=14)  
-
-
-
-# %% QC
-# clean dates, remove all which are not in the given time frame: 
-dates = set(df_all_articles['just_date'])
-
-dates_that_are_there = {}
-missing_dates = {}
-
-print('Number missing days:')
-for newspaper in newspaper_to_use:
-    dates_that_are_there[newspaper] = list(set(df_all_articles[df_all_articles['newspaper']==newspaper]['just_date']))
-    missing_dates[newspaper] = [d for d in dates_that_should_be_there if d not in dates_that_are_there[newspaper]]
-    print(newspaper + ' ' + str(len(missing_dates[newspaper])))
-
-# write down missing dates for the newspapers:
-with open(folder_QC + 'missing_dates.txt', 'w') as f:
-    f.write('Dates where no article was published:\n')
-    for newspaper in missing_dates:
-        f.write(newspaper + ': ')
-        for d in missing_dates[newspaper]:
-            f.write(d + '; ')
-        f.write('\n')
-    
     
 # %% wordclouds figure
 def generate_wordcloud(text, figure_name): 
@@ -274,7 +226,6 @@ df_all_articles = df_all_articles.set_index('just_date').sort_index().reset_inde
 fig, ax = plt.subplots(figsize=(16, 6))  # set the figure height and width
 sns.histplot(df_all_articles, x="just_date", hue="gender", hue_order=hue_order, multiple='stack', palette=dict_colors_gender)#'Set2')#  stack the different values for genders
 prep_xaxis(ax,n=1) # show only 20th xlabel
-ax.set_xlabel('Veröffentlichungsdatum') 
 plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen', fontsize=12)  # title
 plt.tight_layout()  # make the figure, such that you can see everything
 # save figure
@@ -287,15 +238,13 @@ fig, ax = plt.subplots(figsize=(16, 6))  # set the figure height and width
 sns.histplot(df_all_articles, x="just_date", hue="gender", hue_order=hue_order_noNoAuthor, multiple='stack', palette=dict_colors_gender)#  stack the different values for genders
 prep_xaxis(ax,n=number_dates_show) # show only 20th xlabel
 plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen', fontsize=12)  # title
-ax.set_xlabel('Veröffentlichungsdatum')  # ylabel is name of the channel
 plt.tight_layout()  # make the figure, such that you can see everything
 # save figure
 plt.savefig(folder_histplots + 'number_articles_published_noNoAuthor.png')
 plt.close()
 
 # divided by newspapers
-fig, axs = plt.subplots(nrows=len(names_newspaper), figsize=(6, 16), sharex=True)  # for each channel one plot, share xßaxis
-fig.suptitle('Anteil veröffentlichter Artikel', fontsize=16)  # title
+fig, axs = plt.subplots(nrows=len(names_newspaper), figsize=(6, 16))  # for each channel one plot
 for i, newspaper in enumerate(names_newspaper):
     if i==0:
         legend=True  # only want the legend once. 
@@ -303,41 +252,16 @@ for i, newspaper in enumerate(names_newspaper):
         legend=None
     df_to_use = df_all_articles[df_all_articles['newspaper']==newspaper]  # use only dataframe part which belongs to the current channel
     sns.histplot(df_to_use, x="just_date", hue="gender", hue_order=hue_order, multiple='stack', palette=dict_colors_gender,ax=axs[i], legend=legend)#  stack the different values for genders
-    axs[i].set_ylabel(newspaper, fontsize=14)  # ylabel is name of the channel
-    axs[i].set_xlabel('')  # ylabel is name of the channel
+    axs[i].set_ylabel(newspaper)  # ylabel is name of the channel
     plt.tight_layout()  # make the figure, such that you can see everything
+plt.title('Anteil veröffentlichter Artikel', fontsize=12)  # title
 
-prep_xaxis(axs[i],n=number_dates_show) # show only 20th xlabel
-axs[i].set_xlabel('Veröffentlichungsdatum')  # ylabel is name of the channel    
-plt.tight_layout()  # make the figure, such that you can see everything
 # save figure
 plt.savefig(folder_histplots + 'number_articles_published_separeted_by_newspaper.png')
 plt.close()
 
-
-# divided by newspapers, remove no author
-fig, axs = plt.subplots(nrows=len(names_newspaper), figsize=(6, 16), sharex=True)  # for each channel one plot, share xßaxis
-fig.suptitle('Anteil veröffentlichter Artikel', fontsize=16)  # title
-for i, newspaper in enumerate(names_newspaper):
-    if i==0:
-        legend=True  # only want the legend once. 
-    else:
-        legend=None
-    df_to_use = df_all_articles[df_all_articles['newspaper']==newspaper]  # use only dataframe part which belongs to the current channel
-    sns.histplot(df_to_use, x="just_date", hue="gender", hue_order=hue_order_noNoAuthor, multiple='stack', palette=dict_colors_gender,ax=axs[i], legend=legend)#  stack the different values for genders
-    
-    axs[i].set_ylabel(newspaper, fontsize=14)  # ylabel is name of the channel
-    axs[i].set_xlabel('')  # ylabel is name of the channel
-    plt.tight_layout()  # make the figure, such that you can see everything
-prep_xaxis(axs[i],n=number_dates_show) # show only 20th xlabel
-axs[i].set_xlabel('Veröffentlichungsdatum')  # ylabel is name of the channel
-plt.tight_layout()  # make the figure, such that you can see everything
-
-# save figure
-plt.savefig(folder_histplots + 'number_articles_published_separeted_by_newspaper_noNoAuthor.png')
-plt.close()
-
 # put dates together, since too few articles
+
 fig, ax = plt.subplots(figsize=(16, 6))  # set the figure height and width
 sns.histplot(df_all_articles, x="channel", hue="gender", hue_order=hue_order, multiple='stack', palette=dict_colors_gender)
 prep_xaxis(ax,n=number_dates_show)
@@ -347,38 +271,15 @@ plt.tight_layout()  # make the figure, such that you can see everything
 plt.savefig(folder_histplots + 'number_articles_published_channels.png')
 plt.close()
 
-for newspaper in names_newspaper:
-    fig, ax = plt.subplots(figsize=(16, 6))  # set the figure height and width
-    df_to_use = df_all_articles[df_all_articles['newspaper']==newspaper]  # use only dataframe part which belongs to the current channel
-    sns.histplot(df_to_use, x="channel", hue="gender", hue_order=hue_order, multiple='stack', palette=dict_colors_gender)
-    prep_xaxis(ax,n=number_dates_show)
-    plt.title('Anteil veröffentlichter Artikel in ' + newspaper, fontsize=12)  # title
-    plt.tight_layout()  # make the figure, such that you can see everything
-    # save figure
-    plt.savefig(folder_histplots + newspaper + '_number_articles_published_channels.png')
-    plt.close()
-
 #remove No Author
 fig, ax = plt.subplots(figsize=(16, 6))  # set the figure height and width
 sns.histplot(df_all_articles, x="channel", hue="gender", hue_order=hue_order_noNoAuthor, multiple='stack', palette=dict_colors_gender)#, element="step")
 prep_xaxis(ax,n=1)
-plt.title("\n".join(wrap('Anteil veröffentlichter Artikel ohne DPA Meldungen')), fontsize=12)  # title
+plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen', fontsize=12)  # title
 plt.tight_layout()  # make the figure, such that you can see everything
 # save figure
 plt.savefig(folder_histplots + 'number_articles_published_channels_noNoAuthor.png')
 plt.close()
-
-for newspaper in names_newspaper:
-    fig, ax = plt.subplots(figsize=(16, 6))  # set the figure height and width
-    df_to_use = df_all_articles[df_all_articles['newspaper']==newspaper]  # use only dataframe part which belongs to the current channel
-    sns.histplot(df_to_use, x="channel", hue="gender", hue_order=hue_order_noNoAuthor, multiple='stack', palette=dict_colors_gender)#, element="step")
-    prep_xaxis(ax,n=1)
-    plt.title("\n".join(wrap('Anteil veröffentlichter Artikel ohne DPA Meldungen in ' + newspaper)), fontsize=12)  # title
-    plt.tight_layout()  # make the figure, such that you can see everything
-    # save figure
-    plt.savefig(folder_histplots + newspaper + '_number_articles_published_channels_noNoAuthor.png')
-    plt.close()
-
 
 # %% pie and tree charts
 
@@ -408,7 +309,7 @@ for i, newspaper in enumerate(names_newspaper): # create for each newspaper one 
         index_col=1
         index_row+=1
     
-fig.update_layout(title="\n".join(wrap('Anteil veröffentlichter Artikel unterteilt nach Geschlecht')), font=dict(size=15))
+fig.update_layout(title='Anteil veröffentlichter Artikel unterteilt nach Geschlecht', font=dict(size=15))
 fig.write_image(folder_piecharts + 'piechart_articles_published_separeted_by_newspaper.png') 
 
 
@@ -452,10 +353,10 @@ for i, newspaper in enumerate(names_newspaper):
     sb.write_image(folder_piecharts + newspaper + '_piechart_articles_published_separeted_by_newspaper_and_topics.png')
     tm.write_image(folder_piecharts + newspaper + '_treemap_articles_published_separeted_by_newspaper_and_topics.png')
 
-fig.update_layout(title="\n".join(wrap('Anteil veröffentlichter Artikel unterteilt nach Geschlecht')), font=dict(size=15))
+fig.update_layout(title='Anteil veröffentlichter Artikel unterteilt nach Geschlecht', font=dict(size=15))
 fig.write_image(folder_piecharts + 'piechart_articles_published_separeted_by_newspaper_and_topics.png') 
 
-fig2.update_layout(title="\n".join(wrap('Anteil veröffentlichter Artikel unterteilt nach Geschlecht')), font=dict(size=15))
+fig2.update_layout(title='Anteil veröffentlichter Artikel unterteilt nach Geschlecht', font=dict(size=15))
 fig2.write_image(folder_piecharts + 'treemap_articles_published_separeted_by_newspaper_and_topics.png') 
 
 
@@ -482,7 +383,7 @@ for newspaper in names_newspaper:
     df_p.plot(x='channel', y=hue_order_noNoAuthor, kind='bar', stacked=True, color=dict_colors_gender,alpha=.6)
 
     plt.legend(loc=(1.04, 0.3), fancybox=True, shadow=True)
-    plt.title("\n".join(wrap('Anteil veröffentlichter Artikel (ohne DPA) in ' + newspaper)), fontsize=12)  # title
+    plt.title('Anteil veröffentlichter Artikel (ohne DPA) in ' + newspaper, fontsize=12)  # title
     plt.tight_layout()  # make the figure, such that you can see everything
     # save figure
     plt.savefig(folder_histplots + newspaper + '_number_articles_published_channels_noNoAuthor_percent.png')
@@ -497,7 +398,7 @@ df_given_topics = create_dataframes.df_for_given_buzzwords(df_all_articles=df_al
 fig, ax = plt.subplots(figsize=(16, 6))  # set the figure height and width
 sns.histplot(df_given_topics, x="channel", hue="gender", hue_order=hue_order, multiple='stack', palette=dict_colors_gender)#, element="step")
 prep_xaxis(ax,n=1)
-plt.title("\n".join(wrap('Anteil veröffentlichter Artikel zu ' + thema)), fontsize=12)  # title
+plt.title('Anteil veröffentlichter Artikel zu ' + thema, fontsize=12)  # title
 plt.tight_layout()  # make the figure, such that you can see everything
 # save figure
 plt.savefig(folder_histplots + 'number_articles_published_channels_' + thema + 'Topics.png')
@@ -507,24 +408,13 @@ plt.close()
 fig, ax = plt.subplots(figsize=(16, 6))  # set the figure height and width
 sns.histplot(df_given_topics, x="channel", hue="gender", hue_order=hue_order_noNoAuthor, multiple='stack', palette=dict_colors_gender)#, element="step")
 prep_xaxis(ax,n=1)
-plt.title("\n".join(wrap('Anteil veröffentlichter Artikel ohne DPA Meldungen zu ' + thema)), fontsize=12)  # title
+plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen zu ' + thema, fontsize=12)  # title
 plt.tight_layout()  # make the figure, such that you can see everything
 # save figure
 plt.savefig(folder_histplots + 'number_articles_published_channels_noNoAuthor_' + thema + 'Topics.png')
 plt.close()
 
 
-# for each newspaper:
-for newspaper in names_newspaper:
-    df_to_use = df_given_topics[df_given_topics['newspaper']==newspaper]    
-    fig, ax = plt.subplots(figsize=(16, 6))  # set the figure height and width
-    sns.histplot(df_to_use, x="channel", hue="gender", hue_order=hue_order_noNoAuthor, multiple='stack', palette=dict_colors_gender)#, element="step")
-    prep_xaxis(ax,n=1)
-    plt.title("\n".join(wrap('Anteil veröffentlichter Artikel ohne DPA Meldungen zu ' + thema + ' in ' + newspaper)), fontsize=12)  # title
-    plt.tight_layout()  # make the figure, such that you can see everything
-    # save figure
-    plt.savefig(folder_histplots + newspaper + '_number_articles_published_channels_noNoAuthor_' + thema + 'Topics.png')
-    plt.close()
 
 specs = [[{'type':'domain'}, {'type':'domain'}], [{'type':'domain'}, {'type':'domain'}]]  # for eacht pie chart
 fig = make_subplots(rows=2, cols=2, specs=specs)#, subplot_titles=tuple(names_newspaper))
@@ -564,10 +454,10 @@ for i, newspaper in enumerate(names_newspaper):
     sb.write_image(folder_piecharts + newspaper + '_piechart_articles_published_separeted_by_newspaper_given_Topic.png')
     tm.write_image(folder_piecharts + newspaper + '_treemap_articles_published_separeted_by_newspaper_given_Topic.png')
     
-fig.update_layout(title="\n".join(wrap('Anteil veröffentlichter Artikel unterteilt nach Geschlecht zum Thema ' + thema)), font=dict(size=15))
+fig.update_layout(title='Anteil veröffentlichter Artikel unterteilt nach Geschlecht zum Thema ' + thema, font=dict(size=15))
 fig.write_image(folder_piecharts + 'piechart_articles_published_separeted_by_newspaper_given_Topic.png') 
 
-fig2.update_layout(title="\n".join(wrap('Anteil veröffentlichter Artikel unterteilt nach Geschlecht zum Thema ' + thema)), font=dict(size=15))
+fig2.update_layout(title='Anteil veröffentlichter Artikel unterteilt nach Geschlecht zum Thema ' + thema, font=dict(size=15))
 fig2.write_image(folder_piecharts + 'treemap_articles_published_separeted_by_newspaper_given_Topic.png') 
 
 
@@ -590,7 +480,7 @@ for newspaper in names_newspaper:
     df_p.plot(x='channel', y=hue_order_noNoAuthor, kind='bar', stacked=True, color=dict_colors_gender,alpha=.6)
 
     plt.legend(loc=(1.04, 0.3), fancybox=True, shadow=True)
-    plt.title("\n".join(wrap('Anteil veröffentlichter Artikel ohne DPA Meldungen zu' + thema + ' in ' + newspaper)), fontsize=12)  # title
+    plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen zu' + thema + ' in ' + newspaper, fontsize=12)  # title
     plt.tight_layout()  # make the figure, such that you can see everything
     # save figure
     plt.savefig(folder_histplots + newspaper + '_number_articles_published_channels_noNoAuthor_percent_' + thema + '_topics.png')
@@ -642,7 +532,7 @@ for newspaper in names_newspaper:
         df_draw = pd.concat(dfs, join='outer', axis=1)
         df_draw.plot.line()
         prep_xaxis(ax=ax, n=1)
-        plt.title("\n".join(wrap('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche in ' + channel + ' zu ' + thema + ' in ' + newspaper)), fontsize=12)  # title
+        plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche in ' + channel + ' zu ' + thema + ' in ' + newspaper, fontsize=12)  # title
         plt.tight_layout()  # make the figure, such that you can see everything
     
         plt.savefig(folder_lineplots + newspaper + '_' + channel + '_gender_and_' + thema + '_time.png')
@@ -683,7 +573,7 @@ for newspaper in names_newspaper:
     df_draw = pd.concat(dfs, join='outer', axis=1)
     df_draw.plot.line()
     prep_xaxis(ax=ax, n=number_dates_show)
-    plt.title("\n".join(wrap('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche zu ' + thema + ' in ' + newspaper)), fontsize=12)  # title
+    plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche zu ' + thema + ' in ' + newspaper, fontsize=12)  # title
     plt.tight_layout()  # make the figure, such that you can see everything
     
     plt.savefig(folder_lineplots + newspaper + '_most_interesting_channel_gender_and_' + thema + '_time.png')
@@ -733,7 +623,7 @@ for newspaper in names_newspaper:
         # df_draw.plot(kind='bar', stacked=True)
         
         prep_xaxis(ax=ax, n=1)
-        plt.title("\n".join(wrap('Anzahl veröffentlichter Artikel ohne DPA Meldungen pro Woche in ' + channel + ' zu ' + thema + ' in ' + newspaper)), fontsize=12)  # title
+        plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche in ' + channel + ' zu ' + thema + ' in ' + newspaper, fontsize=12)  # title
         plt.tight_layout()  # make the figure, such that you can see everything
         plt.savefig(folder_lineplots + newspaper + '_' + channel + '_gender_and_' + thema + '_weeks.png')
         plt.close()
@@ -744,7 +634,7 @@ for newspaper in names_newspaper:
         df_draw_percentage.sort_values(by='week', axis=0, inplace=True, ascending=True)
         # ['m', 'c']
         df_draw_percentage.plot(kind='bar', stacked=True, color=dict_colors_gender ,alpha=.6)
-        plt.title("\n".join(wrap('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche in ' + channel + ' in ' + newspaper)), fontsize=12)  # title
+        plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche in ' + channel + ' in ' + newspaper, fontsize=12)  # title
         prep_xaxis(ax=ax, n=1)
         plt.tight_layout()  # make the figure, such that you can see everything
         plt.savefig(folder_histplots +  newspaper + '_' + channel + '_gender_weeks_percentage.png')
@@ -787,9 +677,11 @@ for newspaper in names_newspaper:
     df_draw = pd.concat(dfs, join='outer', axis=1)
     df_draw.sort_values(by='week', axis=0, inplace=True, ascending=True)
     df_draw.plot.line()
-    prep_xaxis(ax=ax, n=1)    
-    plt.title("\n".join(wrap('Anzahl veröffentlichter Artikel ohne DPA Meldungen pro Woche in wichtigen Resorts zu ' + thema + ' in ' + newspaper)), fontsize=12)  # title
+    prep_xaxis(ax=ax, n=1)
     plt.tight_layout()  # make the figure, such that you can see everything
+    
+    plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche in wichtigen Resorts zu ' + thema + ' in ' + newspaper, fontsize=12)  # title
+    
     plt.savefig(folder_lineplots + newspaper + '_most_interesting_channel_gender_and_' + thema + '_week.png')
     plt.close()
 
@@ -800,7 +692,7 @@ for newspaper in names_newspaper:
     df_draw_percentage = df_draw[['females', 'males']].divide(df_draw[['females', 'males']].sum(axis=1), axis=0)
     df_draw_percentage.sort_values(by='week', axis=0, inplace=True, ascending=True)
     df_draw_percentage.plot(kind='bar', stacked=True, color=dict_colors_gender,alpha=.6)
-    plt.title("\n".join(wrap('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche in wichtigen Resorts')), fontsize=12)  # title
+    plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche in wichtigen Resorts', fontsize=12)  # title
     prep_xaxis(ax=ax, n=1)
     plt.tight_layout()  # make the figure, such that you can see everything
     plt.savefig(folder_histplots + 'most_interesting_channel_gendee_week_percentage.png')
@@ -811,7 +703,7 @@ for newspaper in names_newspaper:
     df_draw_percentage = df_draw[[thema + ' females', thema + ' males']].divide(df_draw[[thema + ' females', thema+' males']].sum(axis=1), axis=0)
     df_draw_percentage.sort_values(by='week', axis=0, inplace=True, ascending=True)
     df_draw_percentage.plot(kind='bar', stacked=True, color=dict_colors_gender,alpha=.6)
-    plt.title("\n".join(wrap('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche in wichtigen Resorts zu ' + thema+ ' in ' + newspaper)), fontsize=12)  # title
+    plt.title('Anteil veröffentlichter Artikel ohne DPA Meldungen pro Woche in wichtigen Resorts zu ' + thema+ ' in ' + newspaper, fontsize=12)  # title
     prep_xaxis(ax=ax, n=1)
     plt.tight_layout()  # make the figure, such that you can see everything
     plt.savefig(folder_histplots + newspaper + '_most_interesting_channel_gendee_and_'  + thema + 'week_percentage.png')
